@@ -9,19 +9,14 @@ const boardIdMap: { [key: string]: string } = {
 };
 
 export default async function handler(req: any, res: any) {
-  // --- Headers para dar permiso de CORS ---
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Permite cualquier origen
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Vercel necesita responder a la solicitud 'OPTIONS' que hace el navegador
+  // El archivo vercel.json ya maneja los headers de CORS.
+  // Pero dejamos esta respuesta para la solicitud OPTIONS como una buena práctica.
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  // --- Fin de la sección de CORS ---
 
   if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const { category, token } = req.body;
@@ -50,7 +45,7 @@ export default async function handler(req: any, res: any) {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Pinterest API error:', errorData);
-      throw new Error('Failed to fetch pins from Pinterest.');
+      throw new Error(`Pinterest API responded with status ${response.status}`);
     }
 
     const data: any = await response.json();
