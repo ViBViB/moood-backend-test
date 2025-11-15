@@ -1,57 +1,38 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Moood-GoogleAI Conexión</title>
     <style>
         body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; color: #333; text-align: center; }
-        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 90%; }
         h1 { color: #1a73e8; }
-        .error { color: #dc3545; font-weight: bold; }
+        p { margin-bottom: 20px; }
+        textarea { width: 100%; height: 80px; margin-bottom: 15px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="title">Conectando...</h1>
-        <p id="message">Procesando tu autenticación. Esta ventana se cerrará automáticamente.</p>
-        <p class="error" id="errorMessage" style="display: none;"></p>
+        <h1>¡Conectado!</h1>
+        <p>Copia el siguiente token y pégalo de vuelta en el plugin de Figma.</p>
+        <textarea id="tokenArea" readonly></textarea>
+        <button id="copyButton">Copiar Token</button>
     </div>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const email = urlParams.get('email');
         const token = urlParams.get('token');
-        const error = urlParams.get('error');
+        const tokenArea = document.getElementById('tokenArea');
+        const copyButton = document.getElementById('copyButton');
 
-        const title = document.getElementById('title');
-        const message = document.getElementById('message');
-        const errorMessage = document.getElementById('errorMessage');
-
-        try {
-            if (error) {
-                title.textContent = 'Error de Conexión';
-                message.style.display = 'none';
-                errorMessage.textContent = `Error: ${decodeURIComponent(error)}. Por favor, cierra esta ventana e inténtalo de nuevo.`;
-                errorMessage.style.display = 'block';
-                if (window.opener) {
-                    window.opener.postMessage({ pluginMessage: { type: 'auth-error', message: decodeURIComponent(error) } }, '*');
-                }
-            } else if (email && token) {
-                title.textContent = '¡Conectado!';
-                message.textContent = '¡Pinterest conectado con éxito! Volviendo al plugin...';
-                if (window.opener) {
-                    window.opener.postMessage({ pluginMessage: { type: 'auth-success', email: decodeURIComponent(email), token: decodeURIComponent(token) } }, '*');
-                    window.close();
-                } else {
-                    message.textContent = 'Conexión exitosa, pero no se pudo comunicar con el plugin. Cierra esta ventana manualmente.';
-                }
-            } else {
-                title.textContent = 'Error Inesperado';
-                message.textContent = 'Faltan datos de autenticación.';
-            }
-        } catch (e) {
-            console.error("Error en la página de callback:", e);
-            title.textContent = 'Error de Script';
-            message.textContent = 'Ocurrió un error al procesar la autenticación.';
+        if (token) {
+            tokenArea.value = token;
         }
+
+        copyButton.onclick = () => {
+            tokenArea.select();
+            document.execCommand('copy');
+            copyButton.textContent = '¡Copiado!';
+        };
     </script>
 </body>
 </html>
