@@ -1,11 +1,8 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const PINTEREST_CLIENT_ID = process.env.PINTEREST_CLIENT_ID;
-const PINTEREST_REDIRECT_URI = process.env.PINTEREST_REDIRECT_URI;
-const PINTEREST_SCOPE = 'boards:read,pins:read';
-
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: any, res: any) {
   const { email } = req.query;
+  const PINTEREST_CLIENT_ID = process.env.PINTEREST_CLIENT_ID;
+  const PINTEREST_REDIRECT_URI = process.env.PINTEREST_REDIRECT_URI;
+  const PINTEREST_SCOPE = 'boards:read,pins:read';
 
   if (!email) {
     return res.status(400).send('Email is required.');
