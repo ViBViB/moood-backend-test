@@ -1,0 +1,57 @@
+\<!DOCTYPE html>
+<html>
+<head>
+    <title>Moood-GoogleAI Conexión</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; color: #333; text-align: center; }
+        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; }
+        .error { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="title">Conectando...</h1>
+        <p id="message">Procesando tu autenticación. Esta ventana se cerrará automáticamente.</p>
+        <p class="error" id="errorMessage" style="display: none;"></p>
+    </div>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        const token = urlParams.get('token');
+        const error = urlParams.get('error');
+
+        const title = document.getElementById('title');
+        const message = document.getElementById('message');
+        const errorMessage = document.getElementById('errorMessage');
+
+        try {
+            if (error) {
+                title.textContent = 'Error de Conexión';
+                message.style.display = 'none';
+                errorMessage.textContent = `Error: ${decodeURIComponent(error)}. Por favor, cierra esta ventana e inténtalo de nuevo.`;
+                errorMessage.style.display = 'block';
+                if (window.opener) {
+                    window.opener.postMessage({ pluginMessage: { type: 'auth-error', message: decodeURIComponent(error) } }, '*');
+                }
+            } else if (email && token) {
+                title.textContent = '¡Conectado!';
+                message.textContent = '¡Pinterest conectado con éxito! Volviendo al plugin...';
+                if (window.opener) {
+                    window.opener.postMessage({ pluginMessage: { type: 'auth-success', email: decodeURIComponent(email), token: decodeURIComponent(token) } }, '*');
+                    window.close();
+                } else {
+                    message.textContent = 'Conexión exitosa, pero no se pudo comunicar con el plugin. Cierra esta ventana manualmente.';
+                }
+            } else {
+                title.textContent = 'Error Inesperado';
+                message.textContent = 'Faltan datos de autenticación.';
+            }
+        } catch (e) {
+            console.error("Error en la página de callback:", e);
+            title.textContent = 'Error de Script';
+            message.textContent = 'Ocurrió un error al procesar la autenticación.';
+        }
+    </script>
+</body>
+</html>

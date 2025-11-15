@@ -1,0 +1,12 @@
+# Dependencias
+/node_modules
+
+# Archivos y carpetas de Vercel
+/.vercel
+/.output
+
+# Archivos de entorno
+.env
+
+# Archivos del sistema operativo Mac
+.DS_Store
