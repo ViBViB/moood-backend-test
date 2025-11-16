@@ -17,9 +17,8 @@ export default async function handler(req: any, res: any) {
   const boardId = boardIdMap[category];
   if (!boardId || boardId.startsWith('REEMPLAZA')) { return res.status(404).json({ error: 'Category not found or Board ID not configured.' }); }
 
-  // --- ¡CAMBIO CLAVE AQUÍ! ---
-  // Le pedimos a Pinterest que incluya los datos de la imagen.
-  const pinterestApiUrl = `https://api.pinterest.com/v5/boards/${boardId}/pins?pin_fields=image_cover_url`;
+  // Pedimos explícitamente el campo 'media'
+  const pinterestApiUrl = `https://api.pinterest.com/v5/boards/${boardId}/pins?pin_fields=media`;
 
   try {
     const response = await fetch(pinterestApiUrl, {
@@ -34,8 +33,16 @@ export default async function handler(req: any, res: any) {
 
     const data: any = await response.json();
     
-    // Devolvemos los datos crudos de nuevo para verificar
-    res.status(200).json(data.items);
+    // --- ¡LÍNEA CLAVE CORREGIDA! ---
+    const pins = data.items.map((pin: any) => ({
+      id: pin.id,
+      title: pin.title,
+      description: pin.description,
+      // Extraemos la URL de la nueva ubicación correcta
+      imageUrl: pin.media?.images?.['400x300']?.url || pin.media?.images?.['600x']?.url || ''
+    }));
+
+    res.status(200).json(pins);
 
   } catch (e: any) {
     console.error('Error in get-pins function:', e);
