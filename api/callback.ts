@@ -1,49 +1,70 @@
-const fetch = require('node-fetch');
-
 export default async function handler(req: any, res: any) {
   const { code, state: email, error, error_description } = req.query;
-  const PINTEREST_CLIENT_ID = process.env.PINTEREST_CLIENT_ID;
-  const PINTEREST_CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET;
-  const PINTEREST_REDIRECT_URI = process.env.PINTEREST_REDIRECT_URI;
-  const PLUGIN_SUCCESS_PAGE_URL = process.env.PLUGIN_SUCCESS_PAGE_URL;
-
-  if (!PLUGIN_SUCCESS_PAGE_URL || !PINTEREST_REDIRECT_URI) {
-    return res.status(500).send('Server configuration error: Missing Redirect URIs.');
-  }
 
   if (error) {
-    return res.redirect(307, `${PLUGIN_SUCCESS_PAGE_URL}?error=${encodeURIComponent(Array.isArray(error_description) ? error_description[0] : error_description || 'Authentication failed')}`);
+    return renderCloseWithError(res, error_description || "Authentication failed");
   }
 
   if (!code || !email) {
-    return res.status(400).send('Missing code or state from Pinterest.');
+    return renderCloseWithError(res, "Missing code or state from Pinterest.");
   }
 
-  try {
-    const response = await fetch('https://api.pinterest.com/v5/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${PINTEREST_CLIENT_ID}:${PINTEREST_CLIENT_SECRET}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: Array.isArray(code) ? code[0] : code,
-        redirect_uri: PINTEREST_REDIRECT_URI,
-      }),
-    });
+  // 🔥 Enviar el código directamente al plugin (postMessage)
+  return renderSendCodeToPlugin(res, code);
+}
 
-    if (!response.ok) {
-      const errorData = await response.json() as { message?: string };
-      throw new Error(errorData.message || 'Failed to get access token');
-    }
+/* --------------------------------------------------
+   HTML que envía el code al plugin y cierra la ventana
+---------------------------------------------------*/
+function renderSendCodeToPlugin(res: any, code: string) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Returning to Figma…</title>
+</head>
+<body>
+<script>
+  // Enviar el code al plugin
+  window.opener?.postMessage(
+    { pluginMessage: { type: "authorization-code", code: "${code}" } },
+    "*"
+  );
 
-    const tokenData = await response.json() as { access_token: string };
-    const accessToken = tokenData.access_token;
-    
-    res.redirect(307, `${PLUGIN_SUCCESS_PAGE_URL}?email=${encodeURIComponent(Array.isArray(email) ? email[0] : email)}&token=${encodeURIComponent(accessToken)}`);
+  // Cerrar la ventana después de enviar el mensaje
+  window.close();
+</script>
+Returning to Figma…
+</body>
+</html>
+  `;
 
-  } catch (e: any) {
-    res.redirect(307, `${PLUGIN_SUCCESS_PAGE_URL}?error=${encodeURIComponent(e.message || 'Internal server error')}`);
-  }
+  res.setHeader("Content-Type", "text/html");
+  return res.status(200).send(html);
+}
+
+/* --------------------------------------------------
+   HTML en caso de error
+---------------------------------------------------*/
+function renderCloseWithError(res: any, message: string) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" /><title>Error</title></head>
+<body>
+<script>
+  window.opener?.postMessage(
+    { pluginMessage: { type: "auth-failed", message: "${message}" } },
+    "*"
+  );
+  window.close();
+</script>
+Authentication error: ${message}
+</body>
+</html>
+  `;
+
+  res.setHeader("Content-Type", "text/html");
+  return res.status(200).send(html);
 }
