@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "@upstash/redis": "^1.34.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
