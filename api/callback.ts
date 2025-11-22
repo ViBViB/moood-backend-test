@@ -2,11 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fetch from "node-fetch";
 import { Redis } from '@upstash/redis';
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-});
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const code = req.query.code as string;
@@ -34,22 +29,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
-    const tokenJson = await tokenRes.json();
+    const tokenJson: any = await tokenRes.json();
 
     if (!tokenJson.access_token) {
       return res.status(500).send("OAuth Error: No access token");
     }
 
-    const accessToken = tokenJson.access_token;
-    const refreshToken = tokenJson.refresh_token;
+    // Extract session ID from state
+    let sessionId = state;
+    try {
+      const url = new URL(state);
+      sessionId = url.searchParams.get('sessionId') || state;
+    } catch {
+      // If state is not a URL, use it directly as sessionId
+    }
 
-    // Extract session ID from state (format: "SUCCESS_URL?email=...&sessionId=...")
-    const sessionId = new URL(state).searchParams.get('sessionId') || state;
+    // Initialize Redis
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL || '',
+      token: process.env.KV_REST_API_TOKEN || '',
+    });
 
     // Store token in Redis with 5 minute expiration
-    await redis.setex(`auth:${sessionId}`, 300, JSON.stringify({
-      access_token: accessToken,
-      refresh_token: refreshToken,
+    const key = `auth:${sessionId}`;
+    await redis.setex(key, 300, JSON.stringify({
+      access_token: tokenJson.access_token,
+      refresh_token: tokenJson.refresh_token,
       timestamp: Date.now()
     }));
 
@@ -76,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `);
 
   } catch (err) {
-    console.error(err);
-    return res.status(500).send("OAuth callback error");
+    console.error('callback error:', err);
+    return res.status(500).send("OAuth callback error: " + (err instanceof Error ? err.message : 'Unknown'));
   }
 }
