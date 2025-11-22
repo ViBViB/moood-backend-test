@@ -1,38 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Moood-GoogleAI Conexión</title>
+    <title>Moood! – Autenticando…</title>
     <style>
-        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; color: #333; text-align: center; }
-        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 90%; }
-        h1 { color: #1a73e8; }
-        p { margin-bottom: 20px; }
-        textarea { width: 100%; height: 80px; margin-bottom: 15px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 12px; }
-        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        body { 
+            font-family: -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background:#f0f2f5;
+            margin:0;
+        }
+        .box {
+            background:white;
+            padding:30px;
+            border-radius:10px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.1);
+            text-align:center;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>¡Conectado!</h1>
-        <p>Copia el siguiente token y pégalo de vuelta en el plugin de Figma.</p>
-        <textarea id="tokenArea" readonly></textarea>
-        <button id="copyButton">Copiar Token</button>
-    </div>
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-        const tokenArea = document.getElementById('tokenArea');
-        const copyButton = document.getElementById('copyButton');
 
-        if (token) {
-            tokenArea.value = token;
+<div class="box">
+    <h2>Conectando…</h2>
+    <p>No cierres esta ventana.</p>
+</div>
+
+<script>
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get("token");
+    const refresh = url.searchParams.get("refresh");
+
+    if (token) {
+        if (window.opener) {
+            window.opener.postMessage(
+                { pluginMessage: { type: "token-received", token, refresh } },
+                "*"
+            );
         }
 
-        copyButton.onclick = () => {
-            tokenArea.select();
-            document.execCommand('copy');
-            copyButton.textContent = '¡Copiado!';
-        };
-    </script>
+        setTimeout(() => window.close(), 300);
+    } else {
+        document.querySelector("p").textContent = "Error: Token no recibido.";
+    }
+</script>
+
 </body>
 </html>
