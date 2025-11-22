@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fetch from "node-fetch";
-import { Redis } from '@upstash/redis';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -41,24 +40,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const url = new URL(state);
       sessionId = url.searchParams.get('sessionId') || state;
     } catch {
-      // If state is not a URL, use it directly as sessionId
+      // If state is not a URL, use it directly
     }
 
-    // Initialize Redis
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL || '',
-      token: process.env.KV_REST_API_TOKEN || '',
-    });
+    const REDIS_URL = process.env.KV_REST_API_URL;
+    const REDIS_TOKEN = process.env.KV_REST_API_TOKEN;
 
-    // Store token in Redis with 5 minute expiration
+    if (!REDIS_URL || !REDIS_TOKEN) {
+      return res.status(500).send("Redis not configured");
+    }
+
+    // Store token in Redis with 5 minute expiration using REST API
     const key = `auth:${sessionId}`;
-    await redis.setex(key, 300, JSON.stringify({
+    const value = JSON.stringify({
       access_token: tokenJson.access_token,
       refresh_token: tokenJson.refresh_token,
       timestamp: Date.now()
-    }));
+    });
 
-    // Redirect to success page
+    await fetch(`${REDIS_URL}/setex/${key}/300`, {
+      method: 'POST',
+      headers: { 
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(value)
+    });
+
+    // Success page
     return res.send(`
       <!DOCTYPE html>
       <html>
@@ -82,6 +91,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err) {
     console.error('callback error:', err);
-    return res.status(500).send("OAuth callback error: " + (err instanceof Error ? err.message : 'Unknown'));
+    return res.status(500).send("OAuth callback error");
   }
 }
