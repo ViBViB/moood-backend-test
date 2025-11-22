@@ -19,11 +19,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!data) {
       // Not ready yet
-      return res.status(404).json({ ready: false });
+      return res.status(200).json({ ready: false });
     }
 
-    // Parse and return token
-    const tokenData = typeof data === 'string' ? JSON.parse(data) : data;
+    // Parse token data
+    let tokenData;
+    if (typeof data === 'string') {
+      tokenData = JSON.parse(data);
+    } else {
+      tokenData = data;
+    }
 
     // Delete from Redis after retrieval (one-time use)
     await redis.del(`auth:${sessionId}`);
@@ -35,7 +40,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('check-auth error:', err);
+    return res.status(500).json({ 
+      error: 'Server error',
+      details: err instanceof Error ? err.message : 'Unknown error'
+    });
   }
 }
