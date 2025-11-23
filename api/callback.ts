@@ -6,6 +6,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const code = req.query.code as string;
     const state = req.query.state as string;
 
+    console.log('Callback received - code:', code ? 'present' : 'missing', 'state:', state);
+
     if (!code) {
       return res.status(400).send("Missing authorization code");
     }
@@ -13,6 +15,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const CLIENT_ID = process.env.PINTEREST_CLIENT_ID!;
     const CLIENT_SECRET = process.env.PINTEREST_CLIENT_SECRET!;
     const REDIRECT_URI = process.env.PINTEREST_REDIRECT_URI!;
+
+    console.log('Environment check - CLIENT_ID:', CLIENT_ID ? 'present' : 'missing');
+    console.log('REDIRECT_URI:', REDIRECT_URI);
 
     const tokenUrl = "https://api.pinterest.com/v5/oauth/token";
 
@@ -28,10 +33,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
+    console.log('Pinterest response status:', tokenRes.status);
+
     const tokenJson: any = await tokenRes.json();
+    console.log('Pinterest response:', JSON.stringify(tokenJson));
 
     if (!tokenJson.access_token) {
-      return res.status(500).send("OAuth Error: No access token");
+      console.error('No access token in response:', tokenJson);
+      return res.status(500).send("OAuth Error: " + (tokenJson.message || tokenJson.error || "No access token"));
     }
 
     // Extract session ID from state
@@ -43,6 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // If state is not a URL, use it directly
     }
 
+    console.log('Session ID:', sessionId);
+
     const REDIS_URL = process.env.KV_REST_API_URL;
     const REDIS_TOKEN = process.env.KV_REST_API_TOKEN;
 
@@ -50,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).send("Redis not configured");
     }
 
-    // Store token in Redis with 5 minute expiration using REST API
+    // Store token in Redis
     const key = `auth:${sessionId}`;
     const value = JSON.stringify({
       access_token: tokenJson.access_token,
@@ -58,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       timestamp: Date.now()
     });
 
-    await fetch(`${REDIS_URL}/setex/${key}/300`, {
+    const redisRes = await fetch(`${REDIS_URL}/setex/${key}/300`, {
       method: 'POST',
       headers: { 
         Authorization: `Bearer ${REDIS_TOKEN}`,
@@ -66,6 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       body: JSON.stringify(value)
     });
+
+    console.log('Redis storage status:', redisRes.status);
 
     // Success page
     return res.send(`
@@ -89,8 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       </html>
     `);
 
-  } catch (err) {
-    console.error('callback error:', err);
-    return res.status(500).send("OAuth callback error");
+  } catch (err: any) {
+    console.error('Callback error:', err);
+    return res.status(500).send("OAuth callback error: " + err.message);
   }
 }
